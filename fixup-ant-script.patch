@@ -11,7 +11,7 @@ diff --git a/build.xml b/build.xml
 +    <fileset dir="/usr/share/java">
 +      <include name="hamcrest/core.jar" />
 +      <include name="junit4.jar" />
-+      <include name="objenesis.jar" />
++      <include name="objenesis/objenesis.jar" />
 +      <include name="cglib.jar" />
 +    </fileset>
      <fileset dir="${lib.dir.run}" includes="*.jar" />

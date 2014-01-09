@@ -1,4 +1,4 @@
-%_javapackages_macros
+%{?_javapackages_macros:%_javapackages_macros}
 Name:           mockito
 Version:        1.9.0
 Release:        13.1%{?dist}
@@ -56,15 +56,10 @@ sed -i 's/Bundle-Version= ${version}/Bundle-Version= %{version}/' conf/mockito-c
 %patch4 -p1
 
 %build
-%if 0%{?fedora}
 ant jar javadoc
-%else
-CLASSPATH=$(build-classpath aqute-bnd objenesis) %{ant} jar javadoc
-%endif
 # Convert to OSGi bundle
 pushd target
 java -jar $(build-classpath aqute-bnd) wrap -output mockito-core-%{version}.bar -properties ../conf/mockito-core.bnd mockito-core-%{version}.jar
-#java -classpath $(build-classpath aqute-bnd objenesis) wrap -output mockito-core-%{version}.bar -properties ../conf/mockito-core.bnd mockito-core-%{version}.jar
 popd
 
 %install
@@ -92,3 +87,51 @@ cp -rp target/javadoc/* $RPM_BUILD_ROOT%{_javadocdir}/%{name}
 %{_javadocdir}/%{name}
 %doc LICENSE
 %doc NOTICE
+
+%changelog
+* Sat Aug 03 2013 Fedora Release Engineering <rel-eng@lists.fedoraproject.org> - 1.9.0-13
+- Rebuilt for https://fedoraproject.org/wiki/Fedora_20_Mass_Rebuild
+
+* Mon Mar 25 2013 Tomas Radej <tradej@redhat.com> - 1.9.0-12
+- Patched LocalizedMatcher due to hamcrest update, (bug upstream)
+
+* Thu Feb 14 2013 Fedora Release Engineering <rel-eng@lists.fedoraproject.org> - 1.9.0-11
+- Rebuilt for https://fedoraproject.org/wiki/Fedora_19_Mass_Rebuild
+
+* Thu Sep 6 2012 Severin Gehwolf <sgehwolf@redhat.com> 1.9.0-10
+- More Import-Package fixes. Note that fix-cglib-refs.patch is
+  not suitable for upstream:
+  http://code.google.com/p/mockito/issues/detail?id=373
+
+* Tue Sep 4 2012 Severin Gehwolf <sgehwolf@redhat.com> 1.9.0-9
+- Fix missing Import-Package in manifest.
+
+* Mon Aug 27 2012 Severin Gehwolf <sgehwolf@redhat.com> 1.9.0-8
+- Add aqute bnd instructions for OSGi metadata
+
+* Fri Jul 20 2012 Fedora Release Engineering <rel-eng@lists.fedoraproject.org> - 1.9.0-7
+- Rebuilt for https://fedoraproject.org/wiki/Fedora_18_Mass_Rebuild
+
+* Mon Apr 30 2012 Roman Kennke <rkennke@redhat.com> 1.9.0-6
+- Place JavaDoc in directly under %{_javadocdir}/%{name} instead
+  of %{_javadocdir}/%{name}/javadoc
+
+* Wed Apr 25 2012 Roman Kennke <rkennke@redhat.com> 1.9.0-5
+- Removed post/postun hook for update_maven_depmap
+
+* Tue Apr 24 2012 Roman Kennke <rkennke@redhat.com> 1.9.0-4
+- Fix groupId of cglib dependency
+- Add additional depmap for mockito-all
+- Update depmap on post and postun
+- Fix version in pom
+
+* Wed Feb 22 2012 Roman Kennke <rkennke@redhat.com> 1.9.0-3
+- Added cglib dependency to pom
+
+* Tue Feb 21 2012 Roman Kennke <rkennke@redhat.com> 1.9.0-2
+- Include upstream Maven pom.xml in package
+- Added missing Requires for cglib, junit4, hamcrest, objenesis
+- Added source tarball generating script to sources
+
+* Thu Feb 16 2012 Roman Kennke <rkennke@redhat.com> 1.9.0-1
+- Initial package
