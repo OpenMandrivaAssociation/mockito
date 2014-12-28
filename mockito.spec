@@ -1,7 +1,7 @@
 %{?_javapackages_macros:%_javapackages_macros}
 Name:           mockito
 Version:        1.9.0
-Release:        17.1
+Release:        17.2
 Summary:        A Java mocking framework
 Group:		Development/Java
 License:        MIT
@@ -13,6 +13,9 @@ Patch1:         fix-cglib-refs.patch
 Patch2:         maven-cglib-dependency.patch
 Patch3:         fix-bnd-config.patch
 Patch4:         %{name}-matcher.patch
+# Workaround for NPE in setting NamingPolicy in cglib
+Patch5:         setting-naming-policy.patch
+Patch6:         mockito-junit4.patch
 
 BuildArch:      noarch
 BuildRequires:  jpackage-utils
@@ -54,8 +57,11 @@ This package contains the API documentation for %{name}.
 sed -i 's/Bundle-Version= ${version}/Bundle-Version= %{version}/' conf/mockito-core.bnd
 %patch3
 %patch4 -p1
+%patch5 -p1
+%patch6 -p2
 
 %build
+build-jar-repository lib/compile objenesis
 ant jar javadoc
 # Convert to OSGi bundle
 pushd target
