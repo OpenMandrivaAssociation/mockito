@@ -1,9 +1,9 @@
 %{?_javapackages_macros:%_javapackages_macros}
 Name:           mockito
 Version:        1.9.0
-Release:        13.1%{?dist}
+Release:        17.1
 Summary:        A Java mocking framework
-
+Group:		Development/Java
 License:        MIT
 URL:            http://code.google.com/p/mockito/
 Source0:        mockito-%{version}.tar.xz
@@ -20,7 +20,7 @@ BuildRequires:  java-devel
 BuildRequires:  ant
 BuildRequires:  objenesis
 BuildRequires:  cglib
-BuildRequires:  junit4
+BuildRequires:  junit
 BuildRequires:  hamcrest
 BuildRequires:  aqute-bnd
 
@@ -28,7 +28,7 @@ Requires:       jpackage-utils
 Requires:       java
 Requires:       objenesis
 Requires:       cglib
-Requires:       junit4
+Requires:       junit
 Requires:       hamcrest
 
 %description
@@ -76,10 +76,7 @@ cp -rp target/javadoc/* $RPM_BUILD_ROOT%{_javadocdir}/%{name}
 
 %add_maven_depmap JPP-%{name}.pom %{name}.jar -a "org.mockito:mockito-all"
 
-%files
-%{_javadir}/%{name}.jar
-%{_mavenpomdir}/JPP-%{name}.pom
-%{_mavendepmapfragdir}/%{name}
+%files -f .mfiles
 %doc NOTICE
 %doc LICENSE
 
