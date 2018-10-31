@@ -1,7 +1,7 @@
 %{?_javapackages_macros:%_javapackages_macros}
 Name:           mockito
 Version:        1.9.0
-Release:        17.3
+Release:        17.4
 Summary:        A Java mocking framework
 Group:		Development/Java
 License:        MIT
