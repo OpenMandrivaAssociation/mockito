@@ -5,7 +5,7 @@ Release:        17.4
 Summary:        A Java mocking framework
 Group:		Development/Java
 License:        MIT
-URL:            http://code.google.com/p/mockito/
+URL:            https://code.google.com/p/mockito/
 Source0:        mockito-%{version}.tar.xz
 Source1:        make-mockito-sourcetarball.sh
 Patch0:         fixup-ant-script.patch
