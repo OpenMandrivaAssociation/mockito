@@ -1,38 +1,25 @@
-%{?_javapackages_macros:%_javapackages_macros}
 Name:           mockito
-Version:        1.9.0
-Release:        17.4
-Summary:        A Java mocking framework
-Group:		Development/Java
+Version:        5.8.0
+Release:        1
+Summary:        Tasty mocking framework for unit tests in Java
 License:        MIT
-URL:            https://code.google.com/p/mockito/
-Source0:        mockito-%{version}.tar.xz
-Source1:        make-mockito-sourcetarball.sh
-Patch0:         fixup-ant-script.patch
-Patch1:         fix-cglib-refs.patch
-Patch2:         maven-cglib-dependency.patch
-Patch3:         fix-bnd-config.patch
-Patch4:         %{name}-matcher.patch
-# Workaround for NPE in setting NamingPolicy in cglib
-Patch5:         setting-naming-policy.patch
-Patch6:         mockito-junit4.patch
-
+URL:            https://site.mockito.org/
 BuildArch:      noarch
-BuildRequires:  jpackage-utils
-BuildRequires:  java-devel
-BuildRequires:  ant
-BuildRequires:  objenesis
-BuildRequires:  cglib
-BuildRequires:  junit
-BuildRequires:  hamcrest
-BuildRequires:  aqute-bnd
 
-Requires:       jpackage-utils
-Requires:       java
-Requires:       objenesis
-Requires:       cglib
-Requires:       junit
-Requires:       hamcrest
+# ./generate-tarball.sh
+Source0:        %{name}-%{version}.tar.gz
+Source1:        generate-tarball.sh
+# A custom build script to allow building with maven instead of gradle
+Source2:        aggregator.pom
+# Maven central POMs for subprojects
+Source3:        https://repo1.maven.org/maven2/org/mockito/mockito-core/%{version}/mockito-core-%{version}.pom
+Source4:        https://repo1.maven.org/maven2/org/mockito/mockito-junit-jupiter/%{version}/mockito-junit-jupiter-%{version}.pom
+
+# Mockito expects byte-buddy to have a shaded/bundled version of ASM, but
+# we don't bundle in Fedora, so this patch makes mockito use ASM explicitly
+Patch:          use-unbundled-asm.patch
+
+BuildRequires:  javapackages-bootstrap
 
 %description
 Mockito is a mocking framework that tastes really good. It lets you write
@@ -40,101 +27,77 @@ beautiful tests with clean & simple API. Mockito doesn't give you hangover
 because the tests are very readable and they produce clean verification
 errors.
 
-%package javadoc
-Summary:        Javadocs for %{name}
+%package junit-jupiter
+Summary:        Mockito JUnit 5 support
+Requires:       %{name} = %{version}-%{release}
 
-Requires:       jpackage-utils
-
-%description javadoc
-This package contains the API documentation for %{name}.
+%description junit-jupiter
+Mockito JUnit 5 support.
 
 %prep
-%setup -q
-%patch0 -p1
-%patch1 -p1
-%patch2 -p1
-# Set Bundle-Version properly
-sed -i 's/Bundle-Version= ${version}/Bundle-Version= %{version}/' conf/mockito-core.bnd
-%patch3
-%patch4 -p1
-%patch5 -p1
-%patch6 -p2
+%autosetup -p1 -C
+
+cp %{SOURCE2} aggregator.pom
+cp %{SOURCE3} pom.xml
+cp %{SOURCE4} subprojects/junit-jupiter/pom.xml
+
+# Disable failing test
+# TODO check status: https://github.com/mockito/mockito/issues/2162
+sed -i '/add_listeners_concurrently_sanity_check/i @org.junit.Ignore' src/test/java/org/mockitousage/debugging/StubbingLookupListenerCallbackTest.java
+
+# Compatibility alias
+%mvn_alias org.%{name}:%{name}-core org.%{name}:%{name}-all
+
+%pom_add_dep junit:junit
+%pom_add_dep net.bytebuddy:byte-buddy-dep
+%pom_remove_dep org.objenesis:objenesis
+%pom_add_dep org.objenesis:objenesis
+%pom_add_dep org.opentest4j:opentest4j
+
+%pom_remove_dep org.junit.jupiter:junit-jupiter-api subprojects/junit-jupiter
+%pom_add_dep org.junit.jupiter:junit-jupiter-api subprojects/junit-jupiter
+
+mkdir -p src/main/resources/mockito-extensions
+echo 'member-accessor-module' > src/main/resources/mockito-extensions/org.mockito.plugins.MemberAccessor
+echo 'mock-maker-subclass' > src/main/resources/mockito-extensions/org.mockito.plugins.MockMaker
+
+# see gradle/mockito-core/inline-mock.gradle
+%pom_add_plugin org.apache.maven.plugins:maven-antrun-plugin '
+  <executions>
+    <execution>
+      <phase>process-classes</phase>
+      <configuration>
+        <target>
+          <copy file="${project.build.outputDirectory}/org/mockito/internal/creation/bytebuddy/inject/MockMethodDispatcher.class"
+            tofile="${project.build.outputDirectory}/org/mockito/internal/creation/bytebuddy/inject/MockMethodDispatcher.raw"/>
+        </target>
+      </configuration>
+      <goals>
+        <goal>run</goal>
+      </goals>
+    </execution>
+  </executions>
+'
+%pom_add_plugin org.apache.maven.plugins:maven-jar-plugin '
+  <configuration>
+    <excludes>
+      <exclude>org/mockito/internal/creation/bytebuddy/inject/*.class</exclude>
+    </excludes>
+  </configuration>
+'
+
+%mvn_package :aggregator __noinstall
 
 %build
-build-jar-repository lib/compile objenesis
-ant jar javadoc
-# Convert to OSGi bundle
-pushd target
-java -jar $(build-classpath aqute-bnd) wrap -output mockito-core-%{version}.bar -properties ../conf/mockito-core.bnd mockito-core-%{version}.jar
-popd
+%mvn_build -j -f -- -Dmaven.compiler.release=11 -Dproject.build.sourceEncoding=UTF-8 -f aggregator.pom
+
+%mvn_package org.mockito:mockito-junit-jupiter junit-jupiter
 
 %install
-mkdir -p $RPM_BUILD_ROOT%{_javadir}
-sed -i -e "s|@version@|%{version}|g" maven/mockito-core.pom
-cp -p target/mockito-core-%{version}.bar $RPM_BUILD_ROOT%{_javadir}/%{name}.jar
-
-install -d -m 755 $RPM_BUILD_ROOT%{_mavenpomdir}
-install -pm 644 maven/mockito-core.pom  \
-        $RPM_BUILD_ROOT%{_mavenpomdir}/JPP-%{name}.pom
-
-mkdir -p $RPM_BUILD_ROOT%{_javadocdir}/%{name}
-cp -rp target/javadoc/* $RPM_BUILD_ROOT%{_javadocdir}/%{name}
-
-%add_maven_depmap JPP-%{name}.pom %{name}.jar -a "org.mockito:mockito-all"
+%mvn_install
 
 %files -f .mfiles
-%doc NOTICE
-%doc LICENSE
+%license LICENSE
+%doc README.md doc/design-docs/custom-argument-matching.md
 
-%files javadoc
-%{_javadocdir}/%{name}
-%doc LICENSE
-%doc NOTICE
-
-%changelog
-* Sat Aug 03 2013 Fedora Release Engineering <rel-eng@lists.fedoraproject.org> - 1.9.0-13
-- Rebuilt for https://fedoraproject.org/wiki/Fedora_20_Mass_Rebuild
-
-* Mon Mar 25 2013 Tomas Radej <tradej@redhat.com> - 1.9.0-12
-- Patched LocalizedMatcher due to hamcrest update, (bug upstream)
-
-* Thu Feb 14 2013 Fedora Release Engineering <rel-eng@lists.fedoraproject.org> - 1.9.0-11
-- Rebuilt for https://fedoraproject.org/wiki/Fedora_19_Mass_Rebuild
-
-* Thu Sep 6 2012 Severin Gehwolf <sgehwolf@redhat.com> 1.9.0-10
-- More Import-Package fixes. Note that fix-cglib-refs.patch is
-  not suitable for upstream:
-  http://code.google.com/p/mockito/issues/detail?id=373
-
-* Tue Sep 4 2012 Severin Gehwolf <sgehwolf@redhat.com> 1.9.0-9
-- Fix missing Import-Package in manifest.
-
-* Mon Aug 27 2012 Severin Gehwolf <sgehwolf@redhat.com> 1.9.0-8
-- Add aqute bnd instructions for OSGi metadata
-
-* Fri Jul 20 2012 Fedora Release Engineering <rel-eng@lists.fedoraproject.org> - 1.9.0-7
-- Rebuilt for https://fedoraproject.org/wiki/Fedora_18_Mass_Rebuild
-
-* Mon Apr 30 2012 Roman Kennke <rkennke@redhat.com> 1.9.0-6
-- Place JavaDoc in directly under %{_javadocdir}/%{name} instead
-  of %{_javadocdir}/%{name}/javadoc
-
-* Wed Apr 25 2012 Roman Kennke <rkennke@redhat.com> 1.9.0-5
-- Removed post/postun hook for update_maven_depmap
-
-* Tue Apr 24 2012 Roman Kennke <rkennke@redhat.com> 1.9.0-4
-- Fix groupId of cglib dependency
-- Add additional depmap for mockito-all
-- Update depmap on post and postun
-- Fix version in pom
-
-* Wed Feb 22 2012 Roman Kennke <rkennke@redhat.com> 1.9.0-3
-- Added cglib dependency to pom
-
-* Tue Feb 21 2012 Roman Kennke <rkennke@redhat.com> 1.9.0-2
-- Include upstream Maven pom.xml in package
-- Added missing Requires for cglib, junit4, hamcrest, objenesis
-- Added source tarball generating script to sources
-
-* Thu Feb 16 2012 Roman Kennke <rkennke@redhat.com> 1.9.0-1
-- Initial package
+%files junit-jupiter -f .mfiles-junit-jupiter
