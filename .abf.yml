@@ -1,2 +1,4 @@
 sources:
+  mockito-5.24.0.tar.gz: 76cfd55548f0a6f4e5095790f773033f1871f53b
+removed_sources:
   mockito-5.8.0.tar.gz: 11de281f62d24cef6cf3b90dced0439dbca0956e
